@@ -13,23 +13,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # The SDK's install.sh only exports PS4SDK into its own shell, so the
-      # location has to be repeated here. It is /opt/ps4sdk on the CI image.
-      PS4SDK: /opt/ps4sdk
     steps:
       - name: "Checkout"
         uses: actions/checkout@v7
 
       - name: "Setup Environment"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential binutils
-          git clone --depth 1 https://github.com/Scene-Collective/ps4-payload-sdk ~/ps4-payload-sdk
-          cd ~/ps4-payload-sdk
-          chmod +x install.sh
-          sudo ./install.sh
+          git clone --depth 1 https://github.com/Scene-Collective/ps4-payload-sdk "$HOME/ps4-payload-sdk"
+
+      # The SDK is used straight out of the clone. Its install.sh is marked
+      # DEPRECATED upstream: it wants root, rewrites /etc/profile, and re-runs
+      # apt-get -- a second, unnecessary apt run whose non-zero status GitHub
+      # reports as this step failing. None of that is needed: the payload build
+      # only wants a built libPS4 and PS4SDK pointing at it.
+      - name: "Build SDK"
+        run: |
+          PS4SDK="$HOME/ps4-payload-sdk"
+          make -C "$PS4SDK/libPS4"
           test -f "$PS4SDK/libPS4/libPS4.a"
+          test -f "$PS4SDK/libPS4/linker.x"
+          echo "PS4SDK=$PS4SDK" >> "$GITHUB_ENV"
 
       - name: "Build Payload"
         run: |
