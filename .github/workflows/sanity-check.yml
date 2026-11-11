@@ -13,30 +13,40 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # The SDK's install.sh only exports PS4SDK into its own shell, so the
+      # location has to be repeated here. It is /opt/ps4sdk on the CI image.
+      PS4SDK: /opt/ps4sdk
     steps:
-      -
-        name: "Checkout"
-        uses: actions/checkout@v2
-      -
-        name: "Setup Environment"
+      - name: "Checkout"
+        uses: actions/checkout@v7
+
+      - name: "Setup Environment"
         run: |
-          git clone https://github.com/Scene-Collective/ps4-payload-sdk ~/ps4-payload-sdk && cd "$_"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential binutils
+          git clone --depth 1 https://github.com/Scene-Collective/ps4-payload-sdk ~/ps4-payload-sdk
+          cd ~/ps4-payload-sdk
           chmod +x install.sh
           sudo ./install.sh
-      -
-        name: "Build Payload"
+          test -f "$PS4SDK/libPS4/libPS4.a"
+
+      - name: "Build Payload"
         run: |
-          export PS4SDK=/opt/ps4sdk
           make
-      -
-        name: "Upload Binary Artifact"
-        uses: actions/upload-artifact@v2
+          ls -l ./*.bin ./*.map
+
+      - name: "Upload Binary Artifact"
+        uses: actions/upload-artifact@v7
         with:
+          name: payload
           path: ./*.bin
           if-no-files-found: error
-      -
-        name: "Upload Map Artifact"
-        uses: actions/upload-artifact@v2
+
+      - name: "Upload Map Artifact"
+        uses: actions/upload-artifact@v7
         with:
+          name: map
           path: ./*.map
           if-no-files-found: error
+
